@@ -28,7 +28,7 @@ class Daemon {
       $this->executePremiumKeyCheckWorker();
       $this->executeBounceWorker();
       $this->executeExportFilesCleanupWorker();
-      // TODO: execute WooCommerceSync worker
+      $this->executeWooCommerceSyncWorker();
     } catch (\Exception $e) {
       CronHelper::saveDaemonLastError($e->getMessage());
     }
