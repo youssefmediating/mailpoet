@@ -15,6 +15,7 @@ use MailPoet\Cron\Workers\SendingQueue\SendingQueue as SendingQueueWorker;
 use MailPoet\Cron\Workers\KeyCheck\PremiumKeyCheck as PremiumKeyCheckWorker;
 use MailPoet\Cron\Workers\StatsNotifications\Worker as StatsNotificationsWorker;
 use MailPoet\Cron\Workers\KeyCheck\SendingServiceKeyCheck as SendingServiceKeyCheckWorker;
+use MailPoet\Cron\Workers\WooCommerceSync as WooCommerceSyncWorker;
 
 if (!defined('ABSPATH')) exit;
 
@@ -97,6 +98,12 @@ class WordPress {
       'scheduled_in' => [self::SCHEDULED_IN_THE_PAST],
       'status' => ['null', ScheduledTask::STATUS_SCHEDULED]
     ]);
+    // WooCommerce sync
+    $woo_commerce_sync_tasks = self::getTasksCount([
+      'type' => WooCommerceSyncWorker::TASK_TYPE,
+      'scheduled_in' => [self::SCHEDULED_IN_THE_PAST],
+      'status' => ['null', ScheduledTask::STATUS_SCHEDULED]
+    ]);
 
     // check requirements for each worker
     $sending_queue_active = (($scheduled_queues || $running_queues) && !$sending_limit_reached && !$sending_is_paused);
@@ -104,6 +111,7 @@ class WordPress {
     $sending_service_key_check_active = ($mp_sending_enabled && ($msskeycheck_due_tasks || !$msskeycheck_future_tasks));
     $premium_key_check_active = ($premium_key_specified && ($premium_keycheck_due_tasks || !$premium_keycheck_future_tasks));
     $migration_active = !$migration_disabled && ($migration_due_tasks || (!$migration_completed_tasks && !$migration_future_tasks));
+    $woo_commerce_sync_active = $woo_commerce_sync_tasks;
 
     return (
       $migration_active
@@ -112,6 +120,7 @@ class WordPress {
       || $sending_service_key_check_active
       || $premium_key_check_active
       || $stats_notifications_tasks
+      || $woo_commerce_sync_active
     );
   }
 
