@@ -1,7 +1,7 @@
 <?php
 namespace MailPoet\Test\Cron\Workers;
 
-use Codeception\Util\Stub;
+use Carbon\Carbon;
 use MailPoet\Cron\Workers\WooCommerceSync;
 use MailPoet\Models\ScheduledTask;
 use MailPoet\Segments\WooCommerce as WooCommerceSegment;
@@ -29,7 +29,44 @@ class WooCommerceSyncTest extends \MailPoetTest {
   function testItCallsWooCommerceSync() {
     $this->woocommerce_segment->expects($this->once())
       ->method('synchronizeCustomers');
-    $task = Stub::make(ScheduledTask::class);
+    $task = $this->createScheduledTask();
     expect($this->worker->processTaskStrategy($task))->equals(true);
+  }
+
+  function testItWillNotRunInMultipleInstances() {
+    $this->woocommerce_segment->expects($this->once())
+      ->method('synchronizeCustomers');
+    $task = $this->createScheduledTask();
+    expect($this->worker->processTaskStrategy($task))->equals(true);
+    expect($this->worker->processTaskStrategy($task))->equals(false);
+    expect($task->getMeta())->notEmpty();
+  }
+
+  function testItWillRescheduleTaskIfItIsRunningForTooLong() {
+    $this->woocommerce_segment->expects($this->once())
+      ->method('synchronizeCustomers');
+    $task = $this->createScheduledTask();
+    $task = ScheduledTask::findOne($task->id); // make sure `updated_at` is set by the DB
+    expect($this->worker->processTaskStrategy($task))->equals(true);
+    $scheduled_at = $task->scheduled_at;
+    $task->updated_at = Carbon::createFromTimestamp(strtotime($task->updated_at))
+      ->subMinutes(WooCommerceSync::TASK_RUN_TIMEOUT + 1);
+    expect($this->worker->processTaskStrategy($task))->equals(false);
+    expect($scheduled_at < $task->scheduled_at)->true();
+    expect($task->status)->equals(ScheduledTask::STATUS_SCHEDULED);
+    expect($task->getMeta())->isEmpty();
+  }
+
+  private function createScheduledTask() {
+    $task = ScheduledTask::create();
+    $task->type = WooCommerceSync::TASK_TYPE;
+    $task->status = null;
+    $task->scheduled_at = Carbon::createFromTimestamp(current_time('timestamp'));
+    $task->save();
+    return $task;
+  }
+
+  function _after() {
+    \ORM::raw_execute('TRUNCATE ' . ScheduledTask::$_table);
   }
 }
