@@ -148,6 +148,25 @@ jobs:
     - store_artifacts:
         path: /tmp/fake-mailer/
         destination: fake-mailer
+  docker_build:
+    working_directory: /home/circleci/mailpoet
+    machine: true
+    steps:
+      - attach_workspace:
+          at: /home/circleci/mailpoet
+      - run:
+          name: Build docker images
+          command: |
+              cd tests/docker
+              docker-compose build
+              docker save -o /home/circleci/mailpoet/docker_codeception docker_codeception
+              docker save -o /home/circleci/mailpoet/docker_wordpress docker_wordpress
+      - persist_to_workspace:
+          root: /home/circleci/mailpoet
+          paths:
+          - docker_codeception
+          - docker_wordpress
+
   acceptance_tests:
     working_directory: /home/circleci/mailpoet
     machine: true
@@ -160,6 +179,11 @@ jobs:
       - run:
           name: "Set up virtual host"
           command: echo 127.0.0.1 mailpoet.loc | sudo tee -a /etc/hosts
+      - run:
+          name: "Load docker images"
+          command: |
+              docker load -i /home/circleci/mailpoet/docker_codeception
+              docker load -i /home/circleci/mailpoet/docker_wordpress
       - run:
           name: Run acceptance tests
           command: |
@@ -354,8 +378,11 @@ workflows:
   build_and_test:
     jobs:
       - build_and_code_qa
+      - docker_build:
+          requires:
+            - build_and_code_qa
       - acceptance_tests:
           index: 1
           name: acceptance_tests_1
           requires:
-            - build_and_code_qa
+            - docker_build
