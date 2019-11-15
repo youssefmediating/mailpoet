@@ -15,18 +15,12 @@ class Features {
   }
 
   function withFeatureEnabled($name) {
-    $this->flags->createOrUpdate([
-      'name' => $name,
-      'value' => true,
-    ]);
+    $this->flags->createOrUpdateByName($name, true);
     return $this;
   }
 
   function withFeatureDisabled($name) {
-    $this->flags->createOrUpdate([
-      'name' => $name,
-      'value' => false,
-    ]);
+    $this->flags->createOrUpdateByName($name, false);
     return $this;
   }
 }

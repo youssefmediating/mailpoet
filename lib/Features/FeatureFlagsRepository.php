@@ -16,33 +16,17 @@ class FeatureFlagsRepository extends Repository {
     return FeatureFlagEntity::class;
   }
 
-  /**
-   * @param array $data
-   * @throws \RuntimeException
-   * @throws \InvalidArgumentException
-   * @return FeatureFlagEntity
-   */
-  public function createOrUpdate(array $data = []) {
-    if (!$data['name']) {
-      throw new \InvalidArgumentException('Missing name');
-    }
-    $feature_flag = $this->findOneBy([
-      'name' => $data['name'],
-    ]);
-    if (!$feature_flag) {
-      $feature_flag = new FeatureFlagEntity($data['name']);
-      $this->persist($feature_flag);
-    }
-
-    if (array_key_exists('value', $data)) {
-      $feature_flag->setValue($data['value']);
-    }
-
-    try {
-      $this->flush();
-    } catch (\Exception $e) {
-      throw new \RuntimeException("Error when saving feature " . $data['name']);
-    }
-    return $feature_flag;
+  function createOrUpdateByName($name, $value) {
+    return $this->createOrUpdate(
+      ['name' => $name],
+      function (FeatureFlagEntity $feature_flag) use ($value) {
+        $feature_flag->setValue($value);
+      },
+      function () use ($name) {
+        $feature_flag = new FeatureFlagEntity($name);
+        $feature_flag->setName($name);
+        return $feature_flag;
+      }
+    );
   }
 }

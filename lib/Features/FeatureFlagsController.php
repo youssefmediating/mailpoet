@@ -22,7 +22,7 @@ class FeatureFlagsController {
       throw new \RuntimeException("Feature '$name' does not exist'");
     }
 
-    $this->feature_flags_repository->createOrUpdate(['name' => $name, 'value' => $value]);
+    $this->feature_flags_repository->createOrUpdateByName($name, $value);
   }
 
   function getAll() {

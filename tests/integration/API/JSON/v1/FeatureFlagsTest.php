@@ -45,10 +45,7 @@ class FeatureFlagsTest extends \MailPoetTest {
   }
 
   function testItReturnsDatabaseValue() {
-    $this->repository->createOrUpdate([
-      'name' => 'feature-a',
-      'value' => false,
-    ]);
+    $this->repository->createOrUpdateByName('feature-a', false);
 
     $endpoint = $this->createEndpointWithFeatureDefaults([
       'feature-a' => true,
@@ -81,10 +78,7 @@ class FeatureFlagsTest extends \MailPoetTest {
 
 
   function testItUpdatesDatabaseValue() {
-    $this->repository->createOrUpdate([
-      'name' => 'feature-a',
-      'value' => false,
-    ]);
+    $this->repository->createOrUpdateByName('feature-a', 'value');
 
     $endpoint = $this->createEndpointWithFeatureDefaults([
       'feature-a' => true,
@@ -102,10 +96,7 @@ class FeatureFlagsTest extends \MailPoetTest {
   }
 
   function testItDoesNotReturnUnknownFlag() {
-    $this->repository->createOrUpdate([
-      'name' => 'feature-unknown',
-      'value' => true,
-    ]);
+    $this->repository->createOrUpdateByName('feature-unknown', 'value');
 
     $endpoint = $this->createEndpointWithFeatureDefaults([]);
     expect($endpoint->getAll()->data)->isEmpty();
