@@ -72,10 +72,10 @@ abstract class Repository {
   /**
    * @param array $find_by_criteria
    * @param callable $update_callback
-   * @param callable $create_callback
+   * @param callable|null $create_callback
    * @return object
    */
-  function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback) {
+  function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback = null) {
     return $this->create_or_update_manager->createOrUpdate($find_by_criteria, $update_callback, $create_callback);
   }
 

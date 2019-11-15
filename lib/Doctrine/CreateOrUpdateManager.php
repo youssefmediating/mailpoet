@@ -18,16 +18,15 @@ class CreateOrUpdateManager {
     $this->doctrine_repository = $entity_repository;
   }
 
-  function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback) {
+  function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback = null) {
     $entity_name = $this->doctrine_repository->getClassName();
     $entity = $this->doctrine_repository->findOneBy($find_by_criteria);
 
     // create
     if (!$entity) {
-      $entity = $create_callback();
-      if (!is_object($entity) || get_class($entity) !== $entity_name) {
-        throw new \InvalidArgumentException("Create callback did not return entity of type '$entity_name'");
-      }
+      $entity = $create_callback
+        ? $this->createEntityByCallback($entity_name, $create_callback)
+        : $this->createEntityByConstructor($entity_name);
       $update_callback($entity);
 
       try {
@@ -52,6 +51,28 @@ class CreateOrUpdateManager {
     // update
     $update_callback($entity);
     $this->entity_manager->flush();
+    return $entity;
+  }
+
+  private function createEntityByConstructor($entity_name) {
+    $constructor = $this->entity_manager->getClassMetadata($entity_name)
+      ->getReflectionClass()
+      ->getConstructor();
+
+    if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
+      throw new \InvalidArgumentException(
+        "Can't automatically create '$entity_name' because it has required constructor arguments. "
+        . "Please provide '\$create_callback'."
+      );
+    }
+    return new $entity_name();
+  }
+
+  private function createEntityByCallback($entity_name, callable $create_callback) {
+    $entity = $create_callback();
+    if (!is_object($entity) || get_class($entity) !== $entity_name) {
+      throw new \InvalidArgumentException("Create callback did not return entity of type '$entity_name'");
+    }
     return $entity;
   }
 
