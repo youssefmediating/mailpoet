@@ -5,6 +5,7 @@ namespace MailPoet\Doctrine;
 use MailPoetVendor\Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use MailPoetVendor\Doctrine\ORM\EntityManager;
 use MailPoetVendor\Doctrine\ORM\EntityRepository;
+use MailPoetVendor\Doctrine\ORM\ORMInvalidArgumentException;
 
 class CreateOrUpdateManager {
   /** @var EntityManager */
@@ -83,6 +84,37 @@ class CreateOrUpdateManager {
       $this->entity_manager->getConfiguration()
     );
     $new_entity_manager->persist($entity);
-    $new_entity_manager->flush();
+
+    // ensure unwanted side effects with 'cascade' (i.e. 'persist') weren't introduced
+    $insertions = $new_entity_manager->getUnitOfWork()->getScheduledEntityInsertions();
+    $unrelated_changes_count =
+      count($new_entity_manager->getUnitOfWork()->getScheduledEntityUpdates())
+      + count($new_entity_manager->getUnitOfWork()->getScheduledEntityDeletions())
+      + count($new_entity_manager->getUnitOfWork()->getScheduledCollectionDeletions())
+      + count($new_entity_manager->getUnitOfWork()->getScheduledCollectionUpdates());
+
+    if (count($insertions) !== 1 || reset($insertions) !== $entity || $unrelated_changes_count > 0) {
+      $this->throwSideEffectsException(get_class($entity));
+    }
+
+    try {
+      $new_entity_manager->flush();
+    } catch (ORMInvalidArgumentException $e) {
+      // ensure unwanted side effects without 'cascade' (i.e. 'persist') weren't introduced
+      $prefix = 'A new entity was found through the relationship';
+      if (substr($e->getMessage(), 0, strlen($prefix))) {
+        $this->throwSideEffectsException(get_class($entity));
+      }
+      throw $e;
+    }
+  }
+
+  private function throwSideEffectsException($entity_name) {
+    throw new \InvalidArgumentException(
+      "Create callback has database side-effects other than creating an entity of class '$entity_name'. "
+      . 'This can be (unintentionally) caused by passing other entities outside of the callback context '
+      . 'to relations of the created entity. Please fetch all necessary relations from the DB inside '
+      . 'the create callback or pass them using their identifiers - see EntityManager::getReference().'
+    );
   }
 }

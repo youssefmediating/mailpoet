@@ -222,6 +222,46 @@ class CreateOrUpdateManagerTest extends \MailPoetTest {
     );
   }
 
+  function testItScreamsWhenSideEffectFoundThroughCascadeRelation() {
+    $name = 'Entity name';
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessageRegExp('/^Create callback has database side-effects/');
+
+    $create_or_update_manager = new CreateOrUpdateManager($this->entity_manager, $this->doctrine_repository);
+    $create_or_update_manager->createOrUpdate(
+      ['name' => $name],
+      function (Entity $entity) {
+      },
+      function () use ($name) {
+        $create_entity = new Entity();
+        $create_entity->setCascadeParent(new Entity());
+        $create_entity->setName($name);
+        return $create_entity;
+      }
+    );
+  }
+
+  function testItScreamsWhenSideEffectFoundThroughNonCascadeRelation() {
+    $name = 'Entity name';
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessageRegExp('/^Create callback has database side-effects/');
+
+    $create_or_update_manager = new CreateOrUpdateManager($this->entity_manager, $this->doctrine_repository);
+    $create_or_update_manager->createOrUpdate(
+      ['name' => $name],
+      function (Entity $entity) {
+      },
+      function () use ($name) {
+        $create_entity = new Entity();
+        $create_entity->setNonCascadeParent(new Entity());
+        $create_entity->setName($name);
+        return $create_entity;
+      }
+    );
+  }
+
   function _after() {
     $this->connection->executeUpdate("DROP TABLE IF EXISTS $this->table_name");
     $this->connection->executeUpdate("DROP TABLE IF EXISTS $this->with_constructor_entity_table_name");
