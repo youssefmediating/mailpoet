@@ -14,8 +14,13 @@ class TablePrefixMetadataFactory extends ClassMetadataFactory {
   /** @var string */
   private $prefix;
 
-  /** @var array */
-  private $prefixed_map = [];
+  /**
+   * @var array
+   *
+   * NOTE: This array is static intentionally to avoid duplicate prefixing when multiple entity managers
+   *       sharing metadata cache exist. There are some valid use cases (i.e. retrying after exceptions).
+   */
+  private static $prefixed_map = [];
 
   function __construct() {
     if (Env::$db_prefix === null) {
@@ -26,7 +31,7 @@ class TablePrefixMetadataFactory extends ClassMetadataFactory {
 
   function getMetadataFor($class_name) {
     $class_metadata = parent::getMetadataFor($class_name);
-    if (isset($this->prefixed_map[$class_metadata->getName()])) {
+    if (isset(static::$prefixed_map[spl_object_hash($class_metadata)])) {
       return $class_metadata;
     }
 
@@ -35,7 +40,9 @@ class TablePrefixMetadataFactory extends ClassMetadataFactory {
     $is_cached = $this->getCacheDriver()->contains($class_metadata->getName() . $this->cacheSalt);
     if ($class_metadata instanceof ClassMetadata && $is_cached) {
       $this->addPrefix($class_metadata);
-      $this->prefixed_map[$class_metadata->getName()] = true;
+
+      // hold reference to $class_metadata to avoid it being destroyed and hash reused for other object
+      static::$prefixed_map[spl_object_hash($class_metadata)] = $class_metadata;
     }
     return $class_metadata;
   }
