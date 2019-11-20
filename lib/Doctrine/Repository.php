@@ -20,11 +20,11 @@ abstract class Repository {
   /** @var CreateOrUpdateManager */
   private $create_or_update_manager;
 
-  function __construct(EntityManager $entity_manager) {
+  function __construct(EntityManager $entity_manager, CreateOrUpdateManager $create_or_update_manager) {
     $this->entity_manager = $entity_manager;
     $this->class_metadata = $entity_manager->getClassMetadata($this->getEntityClassName());
     $this->doctrine_repository = new DoctrineEntityRepository($this->entity_manager, $this->class_metadata);
-    $this->create_or_update_manager = new CreateOrUpdateManager($this->entity_manager, $this->doctrine_repository);
+    $this->create_or_update_manager = $create_or_update_manager;
   }
 
   /**
@@ -76,7 +76,7 @@ abstract class Repository {
    * @return object
    */
   function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback = null) {
-    return $this->create_or_update_manager->createOrUpdate($find_by_criteria, $update_callback, $create_callback);
+    return $this->create_or_update_manager->createOrUpdate($this->doctrine_repository, $find_by_criteria, $update_callback, $create_callback);
   }
 
   function truncate() {

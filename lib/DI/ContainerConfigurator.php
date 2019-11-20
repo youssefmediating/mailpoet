@@ -123,6 +123,7 @@ class ContainerConfigurator implements IContainerConfigurator {
     $container->autowire(\MailPoet\Doctrine\Validator\ValidatorFactory::class);
     $container->autowire(\MailPoetVendor\Symfony\Component\Validator\Validator\ValidatorInterface::class)
       ->setFactory([new Reference(\MailPoet\Doctrine\Validator\ValidatorFactory::class), 'createValidator']);
+    $container->autowire(\MailPoet\Doctrine\CreateOrUpdateManager::class);
     // Dynamic segments
     $container->autowire(\MailPoet\DynamicSegments\DynamicSegmentHooks::class);
     // Cron

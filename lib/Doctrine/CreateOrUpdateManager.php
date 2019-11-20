@@ -2,26 +2,30 @@
 
 namespace MailPoet\Doctrine;
 
+use MailPoetVendor\Doctrine\Common\Cache\ArrayCache;
 use MailPoetVendor\Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use MailPoetVendor\Doctrine\ORM\EntityManager;
 use MailPoetVendor\Doctrine\ORM\EntityRepository;
 use MailPoetVendor\Doctrine\ORM\ORMInvalidArgumentException;
 
 class CreateOrUpdateManager {
+  /** @var ConfigurationFactory */
+  private $configuration_factory;
+
   /** @var EntityManager */
   private $entity_manager;
 
-  /** @var EntityRepository */
-  private $doctrine_repository;
-
-  function __construct(EntityManager $entity_manager, EntityRepository $entity_repository) {
+  function __construct(
+    ConfigurationFactory $configuration_factory,
+    EntityManager $entity_manager
+  ) {
     $this->entity_manager = $entity_manager;
-    $this->doctrine_repository = $entity_repository;
+    $this->configuration_factory = $configuration_factory;
   }
 
-  function createOrUpdate(array $find_by_criteria, callable $update_callback, callable $create_callback = null) {
-    $entity_name = $this->doctrine_repository->getClassName();
-    $entity = $this->doctrine_repository->findOneBy($find_by_criteria);
+  function createOrUpdate(EntityRepository $doctrine_repository, array $find_by_criteria, callable $update_callback, callable $create_callback = null) {
+    $entity_name = $doctrine_repository->getClassName();
+    $entity = $doctrine_repository->findOneBy($find_by_criteria);
 
     // create
     if (!$entity) {
@@ -39,7 +43,7 @@ class CreateOrUpdateManager {
       }
 
       // refetch entity using the original entity manager
-      $entity = $this->doctrine_repository->findOneBy($find_by_criteria);
+      $entity = $doctrine_repository->findOneBy($find_by_criteria);
       if (!is_object($entity) || get_class($entity) !== $entity_name) {
         throw new \InvalidArgumentException("Find-by criteria did not find an entity of type '$entity_name'");
       }
@@ -79,9 +83,13 @@ class CreateOrUpdateManager {
 
   private function save($entity) {
     // save entity using a new entity manger instance because an exception would close it
+    $cache = new ArrayCache();
+    $configuration = $this->configuration_factory->createConfiguration();
+    $configuration->setQueryCacheImpl($cache);
+    $configuration->setResultCacheImpl($cache);
     $new_entity_manager = $this->entity_manager->create(
       $this->entity_manager->getConnection(),
-      $this->entity_manager->getConfiguration()
+      $configuration
     );
     $new_entity_manager->persist($entity);
 
